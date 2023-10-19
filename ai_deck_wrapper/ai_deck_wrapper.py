@@ -2,12 +2,16 @@ import rclpy
 import sys
 #sys.path.append('/opt/ros/humble/lib/python3/dist-packages')
 from rclpy.node import Node
-from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
 #from image_transport import ImageTransport, CameraPublisher
 
 import time
 import socket,os,struct, time
+import numpy as np
+import cv2
+from cv_bridge import CvBridge
+
 
 
 #wrapper node to take images from crazyflie ip and publish to ros2 topic of type sensor_msgs/Image
@@ -15,7 +19,7 @@ class AI_Deck_Wrapper(Node):
 
     def __init__(self):
         super().__init__('ai_deck_wrapper')
-        self.declare_parameter("period", 2) 
+        self.declare_parameter("period", 2.0) 
         self.declare_parameter("ip", "192.168.1.113") 
         self.declare_parameter("port", 5000) 
         self.declare_parameter("name", "cf13") 
@@ -25,7 +29,7 @@ class AI_Deck_Wrapper(Node):
         self.timer_period = self.get_parameter('period')
         self.name = self.get_parameter('name')
 
-        self.publisher_ = self.create_publisher(CompressedImage, '/image_rect/compressed', 10)
+        self.publisher_ = self.create_publisher(Image, '/image_rect', 10)
         #self.publisher = self.image_transport.advertiseCamera('/image_rect', CompressedImage, 'jpeg')
         #self.publisher_info = self.create_publisher(CameraInfo, self.name.value + '/camera_info', 10)
         self.publisher_info = self.create_publisher(CameraInfo, '/camera_info', 10)
@@ -40,6 +44,8 @@ class AI_Deck_Wrapper(Node):
         self.data_buffer = bytearray()
         self.count = 0
         self.start = time.time()
+        self.bridge = CvBridge()
+
 
         self.cam_info = CameraInfo()
         self.cam_info.width = 324
@@ -107,20 +113,16 @@ class AI_Deck_Wrapper(Node):
 
             self.imgdata = imgStream
 
+        '''
         msg = CompressedImage()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'camera'
         msg.data = self.imgdata
         #CompressedImage msg
         msg.format = 'jpeg'
+        '''
 
-        '''
-        bayer_img = np.frombuffer(imgStream, dtype=np.uint8)   
-        bayer_img.shape = (244, 324)
-        cv_image = bridge.cv2_to_imgmsg(bayer_img, 'mono8')
-        cv_image.header.stamp = cam_info.header.stamp
-        self.publisher_.publish(cv_image)
-        '''
+        
 
         #Image msg
         # msg.height = height
@@ -128,12 +130,35 @@ class AI_Deck_Wrapper(Node):
         # msg.encoding = format
         # msg.is_bigendian = False
         # msg.step = size
-        self.cam_info.header.stamp = msg.header.stamp 
+        self.cam_info.header.stamp = self.get_clock().now().to_msg()
+
+        bayer_img = np.frombuffer(imgStream, dtype=np.uint8)   
+        bayer_img.shape = (244, 324)
+        cv_image = self.bridge.cv2_to_imgmsg(bayer_img, 'mono8')
+        cv_image.header.stamp = self.cam_info.header.stamp
+        self.publisher_.publish(cv_image)
+
         self.publisher_info.publish(self.cam_info)
-        self.publisher_.publish(msg)
+        #self.publisher_.publish(msg)
         #self.publisher_.publish(msg, self.cam_info)
-        self.get_logger().info('Publishing Image: "%s"' % msg.header.stamp)
+        #self.get_logger().info('Publishing Image: "%s"' % msg.header.stamp)
         self.get_logger().info('Publishing Camera: "%s"' % self.cam_info.header.stamp)
+
+        #display image
+        if format == 0:
+            bayer_img = np.frombuffer(imgStream, dtype=np.uint8)   
+            bayer_img.shape = (244, 324)
+            color_img = cv2.cvtColor(bayer_img, cv2.COLOR_BayerBG2BGRA)
+            cv2.imshow('Raw', bayer_img)
+            cv2.imshow('Color', color_img)
+            cv2.waitKey(1)
+        else:
+            with open("img.jpeg", "wb") as f:
+                f.write(imgStream)
+            nparr = np.frombuffer(imgStream, np.uint8)
+            decoded = cv2.imdecode(nparr,cv2.IMREAD_UNCHANGED)
+            cv2.imshow('JPEG', decoded)
+            cv2.waitKey(1)
         
 
 
