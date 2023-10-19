@@ -1,6 +1,11 @@
 import rclpy
+import sys
+#sys.path.append('/opt/ros/humble/lib/python3/dist-packages')
 from rclpy.node import Node
 from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import CameraInfo
+#from image_transport import ImageTransport, CameraPublisher
+
 import time
 import socket,os,struct, time
 
@@ -10,26 +15,52 @@ class AI_Deck_Wrapper(Node):
 
     def __init__(self):
         super().__init__('ai_deck_wrapper')
-        self.declare_parameter("period", 0.5) 
-        self.declare_parameter("ip", "192.168.4.1") 
-        self.declare_parameter("port", "5000") 
+        self.declare_parameter("period", 2) 
+        self.declare_parameter("ip", "192.168.1.113") 
+        self.declare_parameter("port", 5000) 
+        self.declare_parameter("name", "cf13") 
 
         self.deck_ip = self.get_parameter('ip')
         self.deck_port = self.get_parameter('port')
         self.timer_period = self.get_parameter('period')
+        self.name = self.get_parameter('name')
 
         self.publisher_ = self.create_publisher(CompressedImage, '/image_rect/compressed', 10)
-        self.timer = self.create_timer(timer_period, self.timer_callback)
+        #self.publisher = self.image_transport.advertiseCamera('/image_rect', CompressedImage, 'jpeg')
+        #self.publisher_info = self.create_publisher(CameraInfo, self.name.value + '/camera_info', 10)
+        self.publisher_info = self.create_publisher(CameraInfo, '/camera_info', 10)
+        self.timer = self.create_timer(self.timer_period.value, self.timer_callback)
 
-        self.get_logger().info("Connecting to socket on {}:{}...".format(self.deck_ip, self.deck_port))
+        self.get_logger().info("Connecting to socket on {}:{}...".format(self.deck_ip.value, self.deck_port.value))
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect((self.deck_ip, self.deck_port))
+        self.client_socket.connect((self.deck_ip.value, self.deck_port.value))
         self.get_logger().info("Socket connected")
 
         self.imgdata = None
         self.data_buffer = bytearray()
         self.count = 0
         self.start = time.time()
+
+        self.cam_info = CameraInfo()
+        self.cam_info.width = 324
+        self.cam_info.height = 244
+        self.cam_info.distortion_model = "plumb_bob"
+        cam_mats = [180.049252, 0.000000, 169.270200, 0.000000, 180.528259, 160.598796, 0.000000, 0.000000, 1.000000]
+        for i in range(len(cam_mats)):    
+            self.cam_info.k[i] = cam_mats[i]
+        
+        distortion_mats = [-0.077304, -0.006814, 0.000832, 0.000674, 0.000000]
+        for i in range(len(distortion_mats)):    
+            self.cam_info.d.append(distortion_mats[i])
+        
+        projection_mats = [164.769073, 0.000000, 170.861434, 0.000000, 0.000000, 169.009918, 163.618060, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000]
+        for i in range(len(projection_mats)):
+            self.cam_info.p[i] = projection_mats[i]
+
+        rectification_mats = [1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000]
+        for i in range(len(rectification_mats)):
+            self.cam_info.r[i] = rectification_mats[i]
+
 
     def rx_bytes(self, size):
         data = bytearray()
@@ -71,17 +102,25 @@ class AI_Deck_Wrapper(Node):
             
             self.count = self.count + 1
             meanTimePerImage = (time.time()-self.start) / self.count
-            self.get_logger().info("{}".format(meanTimePerImage))
-            self.get_logger().info("{}".format(1/meanTimePerImage))
+            #self.get_logger().info("{}".format(meanTimePerImage))
+            #self.get_logger().info("{}".format(1/meanTimePerImage))
 
             self.imgdata = imgStream
 
-        msg = Image()
+        msg = CompressedImage()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'camera'
         msg.data = self.imgdata
         #CompressedImage msg
         msg.format = 'jpeg'
+
+        '''
+        bayer_img = np.frombuffer(imgStream, dtype=np.uint8)   
+        bayer_img.shape = (244, 324)
+        cv_image = bridge.cv2_to_imgmsg(bayer_img, 'mono8')
+        cv_image.header.stamp = cam_info.header.stamp
+        self.publisher_.publish(cv_image)
+        '''
 
         #Image msg
         # msg.height = height
@@ -89,9 +128,12 @@ class AI_Deck_Wrapper(Node):
         # msg.encoding = format
         # msg.is_bigendian = False
         # msg.step = size
-
+        self.cam_info.header.stamp = msg.header.stamp 
+        self.publisher_info.publish(self.cam_info)
         self.publisher_.publish(msg)
+        #self.publisher_.publish(msg, self.cam_info)
         self.get_logger().info('Publishing Image: "%s"' % msg.header.stamp)
+        self.get_logger().info('Publishing Camera: "%s"' % self.cam_info.header.stamp)
         
 
 
