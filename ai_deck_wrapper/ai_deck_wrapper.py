@@ -142,7 +142,7 @@ class AI_Deck_Wrapper(Node):
         #self.publisher_.publish(msg)
         #self.publisher_.publish(msg, self.cam_info)
         #self.get_logger().info('Publishing Image: "%s"' % msg.header.stamp)
-        self.get_logger().info('Publishing Camera: "%s"' % self.cam_info.header.stamp)
+        #self.get_logger().info('Publishing Camera: "%s"' % self.cam_info.header.stamp)
 
         #display image
         if format == 0:
