@@ -149,8 +149,8 @@ class AI_Deck_Wrapper(Node):
             bayer_img = np.frombuffer(imgStream, dtype=np.uint8)   
             bayer_img.shape = (244, 324)
             color_img = cv2.cvtColor(bayer_img, cv2.COLOR_BayerBG2BGRA)
-            cv2.imshow('Raw', bayer_img)
-            cv2.imshow('Color', color_img)
+            cv2.imshow(self.name.value, bayer_img)
+            #cv2.imshow('Color', color_img)
             cv2.waitKey(1)
         else:
             with open("img.jpeg", "wb") as f:
