@@ -107,7 +107,8 @@ class AI_Deck_Wrapper(Node):
             
             
             self.count = self.count + 1
-            meanTimePerImage = (time.time()-self.start) / self.count
+            self.count = self.count % 100
+            #meanTimePerImage = (time.time()-self.start) / self.count
             #self.get_logger().info("{}".format(meanTimePerImage))
             #self.get_logger().info("{}".format(1/meanTimePerImage))
 
@@ -149,6 +150,7 @@ class AI_Deck_Wrapper(Node):
             bayer_img = np.frombuffer(imgStream, dtype=np.uint8)   
             bayer_img.shape = (244, 324)
             color_img = cv2.cvtColor(bayer_img, cv2.COLOR_BayerBG2BGRA)
+            cv2.putText(bayer_img, "Count: {:.1f}".format(self.count), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             cv2.imshow(self.name.value, bayer_img)
             #cv2.imshow('Color', color_img)
             cv2.waitKey(1)
