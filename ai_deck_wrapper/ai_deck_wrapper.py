@@ -137,7 +137,7 @@ class AI_Deck_Wrapper(Node):
 
 
         bayer_img = np.frombuffer(imgStream, dtype=np.uint8)   
-        #bayer_img.shape = (244, 324)
+        bayer_img.shape = (244, 324)
         cv_image = self.bridge.cv2_to_imgmsg(bayer_img, 'bgr8')
 
         cv_image.header.stamp = self.cam_info.header.stamp
