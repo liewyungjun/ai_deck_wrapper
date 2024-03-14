@@ -136,17 +136,19 @@ class AI_Deck_Wrapper(Node):
         self.cam_info.header.stamp = self.get_clock().now().to_msg()
 
 
-        bayer_img = np.frombuffer(imgStream, dtype=np.uint8) 
-        img_decoded = cv2.imdecode(bayer_img,cv2.IMREAD_UNCHANGED)  
-        # print(img_decoded)
-        # print(len(img_decoded))
-        # print(len(img_decoded[0]))
-        img_decoded.shape = (244, 324)
-        cv_image = self.bridge.cv2_to_imgmsg(img_decoded, 'mono8')
+        img_stream = np.frombuffer(imgStream, dtype=np.uint8) 
+        if format == 0:
+            #try:
+            img_stream.shape = (244,324)
+            cv_image = self.bridge.cv2_to_imgmsg(img_stream, 'mono8')
+        else:
+            #except ValueError:
+            img_decoded = cv2.imdecode(img_stream,cv2.IMREAD_UNCHANGED)
+            img_decoded.shape = (244, 324)
+            cv_image = self.bridge.cv2_to_imgmsg(img_decoded, 'mono8')
 
         cv_image.header.stamp = self.cam_info.header.stamp
         self.publisher_.publish(cv_image)
-
         self.publisher_info.publish(self.cam_info)
 
 
@@ -157,19 +159,14 @@ class AI_Deck_Wrapper(Node):
 
         #display image
         if format == 0:
-            bayer_img = np.frombuffer(imgStream, dtype=np.uint8)   
-            bayer_img.shape = (244, 324)
-            color_img = cv2.cvtColor(bayer_img, cv2.COLOR_BayerBG2BGRA)
-            cv2.putText(bayer_img, "Count: {:.1f}".format(self.count), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-            cv2.imshow(self.name.value, bayer_img)
+            #color_img = cv2.cvtColor(img_stream, cv2.COLOR_BayerBG2BGRA)
+            cv2.putText(img_stream, "Count: {:.1f}".format(self.count), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            cv2.imshow(self.name.value, img_stream)
             #cv2.imshow('Color', color_img)
             cv2.waitKey(1)
         else:
-            with open("img.jpeg", "wb") as f:
-                f.write(imgStream)
-            nparr = np.frombuffer(imgStream, np.uint8)
-            decoded = cv2.imdecode(nparr,cv2.IMREAD_UNCHANGED)
-            cv2.imshow('JPEG', decoded)
+            cv2.putText(img_decoded, "Count: {:.1f}".format(self.count), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            cv2.imshow(self.name.value, img_decoded)
             cv2.waitKey(1)
         
 
