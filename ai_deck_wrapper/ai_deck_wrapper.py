@@ -136,9 +136,13 @@ class AI_Deck_Wrapper(Node):
         self.cam_info.header.stamp = self.get_clock().now().to_msg()
 
 
-        bayer_img = np.frombuffer(imgStream, dtype=np.uint8)   
-        bayer_img.shape = (244, 324)
-        cv_image = self.bridge.cv2_to_imgmsg(bayer_img, 'bgr8')
+        bayer_img = np.frombuffer(imgStream, dtype=np.uint8) 
+        img_decoded = cv2.imdecode(bayer_img,cv2.IMREAD_UNCHANGED)  
+        # print(img_decoded)
+        # print(len(img_decoded))
+        # print(len(img_decoded[0]))
+        img_decoded.shape = (244, 324)
+        cv_image = self.bridge.cv2_to_imgmsg(img_decoded, 'mono8')
 
         cv_image.header.stamp = self.cam_info.header.stamp
         self.publisher_.publish(cv_image)
