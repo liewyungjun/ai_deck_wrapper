@@ -66,6 +66,8 @@ class AI_Deck_Wrapper(Node):
         rectification_mats = [1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000]
         for i in range(len(rectification_mats)):
             self.cam_info.r[i] = rectification_mats[i]
+        
+        self.last_image_time = time.time()
 
 
     def rx_bytes(self, size):
@@ -123,7 +125,11 @@ class AI_Deck_Wrapper(Node):
         msg.format = 'jpeg'
         '''
 
-        
+
+        while True:
+            if time.time() - self.last_image_time > 5:
+                print(f'{self.name} STOPPED STREAMING')
+                self.last_image_time = time.time()
 
         #Image msg
         # msg.height = height
@@ -146,21 +152,21 @@ class AI_Deck_Wrapper(Node):
         #self.get_logger().info('Publishing Camera: "%s"' % self.cam_info.header.stamp)
 
         #display image
-        if format == 0:
-            bayer_img = np.frombuffer(imgStream, dtype=np.uint8)   
-            bayer_img.shape = (244, 324)
-            color_img = cv2.cvtColor(bayer_img, cv2.COLOR_BayerBG2BGRA)
-            cv2.putText(bayer_img, "Count: {:.1f}".format(self.count), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-            cv2.imshow(self.name.value, bayer_img)
-            #cv2.imshow('Color', color_img)
-            cv2.waitKey(1)
-        else:
-            with open("img.jpeg", "wb") as f:
-                f.write(imgStream)
-            nparr = np.frombuffer(imgStream, np.uint8)
-            decoded = cv2.imdecode(nparr,cv2.IMREAD_UNCHANGED)
-            cv2.imshow('JPEG', decoded)
-            cv2.waitKey(1)
+        # if format == 0:
+        #     bayer_img = np.frombuffer(imgStream, dtype=np.uint8)   
+        #     bayer_img.shape = (244, 324)
+        #     color_img = cv2.cvtColor(bayer_img, cv2.COLOR_BayerBG2BGRA)
+        #     cv2.putText(bayer_img, "Count: {:.1f}".format(self.count), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        #     cv2.imshow(self.name.value, bayer_img)
+        #     #cv2.imshow('Color', color_img)
+        #     cv2.waitKey(1)
+        # else:
+        #     with open("img.jpeg", "wb") as f:
+        #         f.write(imgStream)
+        #     nparr = np.frombuffer(imgStream, np.uint8)
+        #     decoded = cv2.imdecode(nparr,cv2.IMREAD_UNCHANGED)
+        #     cv2.imshow('JPEG', decoded)
+        #     cv2.waitKey(1)
         
 
 
