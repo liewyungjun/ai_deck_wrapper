@@ -122,11 +122,23 @@ class AI_Deck_Wrapper(Node):
             # msg.step = size
             self.cam_info.header.stamp = self.get_clock().now().to_msg()
 
-            bayer_img = np.frombuffer(imgStream, dtype=np.uint8)
-            bayer_img.shape = (244, 324)
-            cv_image = self.bridge.cv2_to_imgmsg(bayer_img, 'mono8')
-            cv_image.header.stamp = self.cam_info.header.stamp
-            self.publisher_.publish(cv_image)
+            # bayer_img = np.frombuffer(imgStream, dtype=np.uint8)
+            # bayer_img.shape = (244, 324)
+            # cv_image = self.bridge.cv2_to_imgmsg(bayer_img, 'mono8')
+            # cv_image.header.stamp = self.cam_info.header.stamp
+            # self.publisher_.publish(cv_image)
+
+            img_stream = np.frombuffer(imgStream, dtype=np.uint8)
+
+            if format == 0:
+                img_stream.shape = (244, 324)
+                self.get_logger().info("RAW")
+                cv_image = self.bridge.cv2_to_imgmsg(img_stream, 'mono8')
+            else:
+                img_decoded = cv2.imdecode(img_stream, cv2.IMREAD_UNCHANGED)
+                img_decoded.shape = (244, 324)
+                self.get_logger().info("JPEG")
+                cv_image = self.bridge.cv2_to_imgmsg(img_decoded, 'mono8')
 
             self.publisher_info.publish(self.cam_info)
             #self.publisher_.publish(msg)
@@ -138,7 +150,7 @@ class AI_Deck_Wrapper(Node):
             if format == 0:
                 bayer_img = np.frombuffer(imgStream, dtype=np.uint8)
                 bayer_img.shape = (244, 324)
-                color_img = cv2.cvtColor(bayer_img, cv2.COLOR_BayerBG2BGRA)
+                # color_img = cv2.cvtColor(bayer_img, cv2.COLOR_BayerBG2BGRA)
                 cv2.putText(bayer_img, "Count: {:.1f}".format(self.count), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
                 cv2.imshow(self.name.value, bayer_img)
                 #cv2.imshow('Color', color_img)
@@ -148,13 +160,14 @@ class AI_Deck_Wrapper(Node):
                     f.write(imgStream)
                 nparr = np.frombuffer(imgStream, np.uint8)
                 decoded = cv2.imdecode(nparr,cv2.IMREAD_UNCHANGED)
+                cv2.putText(decoded, "Count: {:.1f}".format(self.count), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
                 cv2.imshow('JPEG', decoded)
                 cv2.waitKey(1)
 
     def __init__(self):
         super().__init__('ai_deck_wrapper')
         self.declare_parameter("period", 2.0)
-        self.declare_parameter("ip", "192.168.4.1")
+        self.declare_parameter("ip", "192.168.1.105")
         self.declare_parameter("port", 5000)
         self.declare_parameter("name", "cf18")
 
