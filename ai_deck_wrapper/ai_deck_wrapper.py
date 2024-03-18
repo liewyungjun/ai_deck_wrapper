@@ -7,20 +7,30 @@ from sensor_msgs.msg import CameraInfo
 #from image_transport import ImageTransport, CameraPublisher
 
 import time
-import socket,os,struct, time
+import socket,os,struct,time
 import numpy as np
 import cv2
 from cv_bridge import CvBridge
 
-
-
 #wrapper node to take images from crazyflie ip and publish to ros2 topic of type sensor_msgs/Image
 class AI_Deck_Wrapper(Node):
     def socketConnect(self):
-        self.get_logger().info("Connecting to socket on {}:{}...".format(self.deck_ip.value, self.deck_port.value))
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect((self.deck_ip.value, self.deck_port.value))
-        self.get_logger().info("Socket connected")
+        timeout = 3
+        retryTime = 3
+        connected = False
+
+        while(not connected):
+            try:
+                self.get_logger().info("Connecting to socket on {}:{}...".format(self.deck_ip.value, self.deck_port.value))
+                self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.client_socket.settimeout(timeout)
+                self.client_socket.connect((self.deck_ip.value, self.deck_port.value))
+                self.get_logger().info("Socket connected")
+                connected = True
+            except socket.error as msg:
+                self.get_logger().info("Socket Error: {}".format(msg))
+
+            time.sleep(retryTime)
 
     def rx_bytes(self, size):
         data = bytearray()
