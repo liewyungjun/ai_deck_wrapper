@@ -17,34 +17,44 @@ class AI_Deck_Wrapper(Node):
     def socketConnect(self):
         timeout = 3
         retryTime = 3
-        connected = False
 
-        while(not connected):
+        while(not self.connected):
             try:
                 self.get_logger().info("Connecting to socket on {}:{}...".format(self.deck_ip.value, self.deck_port.value))
                 self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.client_socket.settimeout(timeout)
                 self.client_socket.connect((self.deck_ip.value, self.deck_port.value))
                 self.get_logger().info("Socket connected")
-                connected = True
+                self.connected = True
             except socket.error as msg:
-                self.get_logger().info("Socket Error: {}".format(msg))
+                self.get_logger().info("socketConnect: {}".format(msg))
 
             time.sleep(retryTime)
 
     def rx_bytes(self, size):
         data = bytearray()
         while len(data) < size:
-            data.extend(self.client_socket.recv(size-len(data)))
+            try:
+                data.extend(self.client_socket.recv(size-len(data)))
+            except socket.error as msg:
+                self.get_logger().info("rx_bytes: {}".format(msg))
+                self.connected = False
+                break
+
         return data
 
+    #maybe this all can be a rcvImage function (yes it can)
     def rcvImage(self):
-        self.socketConnect()
-
         while(1):
-            #maybe this all can be a rcvImage function
+            if not self.connected:
+                self.socketConnect()
+
             # First get the info
             packetInfoRaw = self.rx_bytes(4)
+
+            if not self.connected:
+                continue #if rx_bytes failed, reconnect
+
             #self.get_logger().info(packetInfoRaw)
             [length, routing, function] = struct.unpack('<HBB', packetInfoRaw)
             #self.get_logger().info("Length is {}".format(length))
@@ -52,6 +62,10 @@ class AI_Deck_Wrapper(Node):
             #self.get_logger().info("Function is 0x{:02X}".format(function))
 
             imgHeader = self.rx_bytes(length - 2)
+
+            if not self.connected:
+                continue #if rx_bytes failed, reconnect
+
             #self.get_logger().info(imgHeader)
             #self.get_logger().info("Length of data is {}".format(len(imgHeader)))
             [magic, width, height, depth, format, size] = struct.unpack('<BHHBBI', imgHeader)
@@ -67,11 +81,21 @@ class AI_Deck_Wrapper(Node):
 
                 while len(imgStream) < size:
                     packetInfoRaw = self.rx_bytes(4)
+
+                    if not self.connected:
+                        break #if rx_bytes failed, reconnect
+
                     [length, dst, src] = struct.unpack('<HBB', packetInfoRaw)
                     #self.get_logger().info("Chunk size is {} ({:02X}->{:02X})".format(length, src, dst))
                     chunk = self.rx_bytes(length - 2)
+
+                    if not self.connected:
+                        break #if rx_bytes failed, break out of the while loop and reconnect after that
+
                     imgStream.extend(chunk)
 
+                if not self.connected:
+                    continue #if rx_bytes failed, reconnect
 
                 self.count = self.count + 1
                 self.count = self.count % 100
@@ -172,6 +196,7 @@ class AI_Deck_Wrapper(Node):
         for i in range(len(rectification_mats)):
             self.cam_info.r[i] = rectification_mats[i]
 
+        self.connected = False
         self.rcvImage()
 
 def main(args=None):
