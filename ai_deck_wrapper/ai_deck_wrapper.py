@@ -18,6 +18,8 @@ class AI_Deck_Wrapper(Node):
         timeout = 3
         retryTime = 3
 
+        self.client_socket.close()
+
         while(not self.connected):
             try:
                 #self.get_logger().info("Connecting to socket on {}:{}...".format(self.deck_ip.value, self.deck_port.value))
@@ -38,7 +40,6 @@ class AI_Deck_Wrapper(Node):
                 data.extend(self.client_socket.recv(size-len(data)))
             except socket.error as msg:
                 self.get_logger().info("rx_bytes: {}".format(msg))
-                self.client_socket.close
                 self.connected = False
                 break
 
@@ -59,8 +60,8 @@ class AI_Deck_Wrapper(Node):
             #self.get_logger().info(packetInfoRaw)
             try:
                 [length, routing, function] = struct.unpack('<HBB', packetInfoRaw)
-            except:
-                self.client_socket.close
+            except Exception as e:
+                self.get_logger().info("Error unpacking [length, routing, function]: {}", e)
                 self.connected = False
                 continue
 
@@ -77,8 +78,8 @@ class AI_Deck_Wrapper(Node):
             #self.get_logger().info("Length of data is {}".format(len(imgHeader)))
             try:
                 [magic, width, height, depth, format, size] = struct.unpack('<BHHBBI', imgHeader)
-            except:
-                self.client_socket.close
+            except Exception as e:
+                self.get_logger().info("Error unpacking [magic, width, height, depth, format, size]: {}", e)
                 self.connected = False
                 continue
 
@@ -100,7 +101,7 @@ class AI_Deck_Wrapper(Node):
                     try:
                         [length, dst, src] = struct.unpack('<HBB', packetInfoRaw)
                     except:
-                        self.client_socket.close
+                        self.get_logger().info("Error unpacking [length, dst, src]: {}", e)
                         self.connected = False
                         break
 
