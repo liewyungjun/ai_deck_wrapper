@@ -158,7 +158,7 @@ class AI_Deck_Wrapper(Node):
                 #self.get_logger().info("JPEG")
                 cv_image = self.bridge.cv2_to_imgmsg(img_decoded, 'mono8')
 
-            cv_image.header.stamp = self.cam_info.header.stamp  
+            cv_image.header.stamp = self.cam_info.header.stamp
             self.publisher_.publish(cv_image)
             self.publisher_info.publish(self.cam_info)
             #self.publisher_.publish(msg)
@@ -176,8 +176,8 @@ class AI_Deck_Wrapper(Node):
                 #cv2.imshow('Color', color_img)
                 cv2.waitKey(1)
             else:
-                with open("img.jpeg", "wb") as f:
-                    f.write(imgStream)
+                #with open("img.jpeg", "wb") as f:
+                #    f.write(imgStream)
                 nparr = np.frombuffer(imgStream, np.uint8)
                 decoded = cv2.imdecode(nparr,cv2.IMREAD_UNCHANGED)
                 cv2.putText(decoded, "Count: {:.1f}".format(self.count), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
