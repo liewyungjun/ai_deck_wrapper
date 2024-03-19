@@ -20,16 +20,16 @@ class AI_Deck_Wrapper(Node):
 
         while(not self.connected):
             try:
-                self.get_logger().info("Connecting to socket on {}:{}...".format(self.deck_ip.value, self.deck_port.value))
+                #self.get_logger().info("Connecting to socket on {}:{}...".format(self.deck_ip.value, self.deck_port.value))
                 self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.client_socket.settimeout(timeout)
                 self.client_socket.connect((self.deck_ip.value, self.deck_port.value))
-                self.get_logger().info("Socket connected")
+                #self.get_logger().info("Socket connected")
                 self.connected = True
             except socket.error as msg:
-                self.get_logger().info("socketConnect: {}".format(msg))
+                #self.get_logger().info("socketConnect: {}".format(msg))
 
-            time.sleep(retryTime)
+                time.sleep(retryTime)
 
     def rx_bytes(self, size):
         data = bytearray()
@@ -150,14 +150,16 @@ class AI_Deck_Wrapper(Node):
 
             if format == 0:
                 img_stream.shape = (244, 324)
-                self.get_logger().info("RAW")
+                #self.get_logger().info("RAW")
                 cv_image = self.bridge.cv2_to_imgmsg(img_stream, 'mono8')
             else:
                 img_decoded = cv2.imdecode(img_stream, cv2.IMREAD_UNCHANGED)
                 img_decoded.shape = (244, 324)
-                self.get_logger().info("JPEG")
+                #self.get_logger().info("JPEG")
                 cv_image = self.bridge.cv2_to_imgmsg(img_decoded, 'mono8')
 
+            cv_image.header.stamp = self.cam_info.header.stamp  
+            self.publisher_.publish(cv_image)
             self.publisher_info.publish(self.cam_info)
             #self.publisher_.publish(msg)
             #self.publisher_.publish(msg, self.cam_info)
@@ -179,7 +181,7 @@ class AI_Deck_Wrapper(Node):
                 nparr = np.frombuffer(imgStream, np.uint8)
                 decoded = cv2.imdecode(nparr,cv2.IMREAD_UNCHANGED)
                 cv2.putText(decoded, "Count: {:.1f}".format(self.count), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                cv2.imshow('JPEG', decoded)
+                cv2.imshow(self.name.value + ' J', decoded)
                 cv2.waitKey(1)
 
     def __init__(self):
