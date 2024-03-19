@@ -20,16 +20,16 @@ class AI_Deck_Wrapper(Node):
 
         while(not self.connected):
             try:
-                #self.get_logger().info("Connecting to socket on {}:{}...".format(self.deck_ip.value, self.deck_port.value))
+                self.get_logger().info("Connecting to socket on {}:{}...".format(self.deck_ip.value, self.deck_port.value))
                 self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.client_socket.settimeout(timeout)
                 self.client_socket.connect((self.deck_ip.value, self.deck_port.value))
-                #self.get_logger().info("Socket connected")
+                self.get_logger().info("Socket connected")
                 self.connected = True
             except socket.error as msg:
-                #self.get_logger().info("socketConnect: {}".format(msg))
+                self.get_logger().info("socketConnect: {}".format(msg))
 
-                time.sleep(retryTime)
+            time.sleep(retryTime)
 
     def rx_bytes(self, size):
         data = bytearray()
@@ -38,6 +38,7 @@ class AI_Deck_Wrapper(Node):
                 data.extend(self.client_socket.recv(size-len(data)))
             except socket.error as msg:
                 self.get_logger().info("rx_bytes: {}".format(msg))
+                self.client_socket.close
                 self.connected = False
                 break
 
@@ -56,7 +57,13 @@ class AI_Deck_Wrapper(Node):
                 continue #if rx_bytes failed, reconnect
 
             #self.get_logger().info(packetInfoRaw)
-            [length, routing, function] = struct.unpack('<HBB', packetInfoRaw)
+            try:
+                [length, routing, function] = struct.unpack('<HBB', packetInfoRaw)
+            except:
+                self.client_socket.close
+                self.connected = False
+                continue
+
             #self.get_logger().info("Length is {}".format(length))
             #self.get_logger().info("Route is 0x{:02X}->0x{:02X}".format(routing & 0xF, routing >> 4))
             #self.get_logger().info("Function is 0x{:02X}".format(function))
@@ -68,7 +75,12 @@ class AI_Deck_Wrapper(Node):
 
             #self.get_logger().info(imgHeader)
             #self.get_logger().info("Length of data is {}".format(len(imgHeader)))
-            [magic, width, height, depth, format, size] = struct.unpack('<BHHBBI', imgHeader)
+            try:
+                [magic, width, height, depth, format, size] = struct.unpack('<BHHBBI', imgHeader)
+            except:
+                self.client_socket.close
+                self.connected = False
+                continue
 
             if magic == 0xBC:
                 #self.get_logger().info("Magic is good")
@@ -85,7 +97,13 @@ class AI_Deck_Wrapper(Node):
                     if not self.connected:
                         break #if rx_bytes failed, reconnect
 
-                    [length, dst, src] = struct.unpack('<HBB', packetInfoRaw)
+                    try:
+                        [length, dst, src] = struct.unpack('<HBB', packetInfoRaw)
+                    except:
+                        self.client_socket.close
+                        self.connected = False
+                        break
+
                     #self.get_logger().info("Chunk size is {} ({:02X}->{:02X})".format(length, src, dst))
                     chunk = self.rx_bytes(length - 2)
 
@@ -125,22 +143,21 @@ class AI_Deck_Wrapper(Node):
             # bayer_img = np.frombuffer(imgStream, dtype=np.uint8)
             # bayer_img.shape = (244, 324)
             # cv_image = self.bridge.cv2_to_imgmsg(bayer_img, 'mono8')
-            
+            # cv_image.header.stamp = self.cam_info.header.stamp
+            # self.publisher_.publish(cv_image)
 
             img_stream = np.frombuffer(imgStream, dtype=np.uint8)
 
             if format == 0:
                 img_stream.shape = (244, 324)
-                #self.get_logger().info("RAW")
+                self.get_logger().info("RAW")
                 cv_image = self.bridge.cv2_to_imgmsg(img_stream, 'mono8')
             else:
                 img_decoded = cv2.imdecode(img_stream, cv2.IMREAD_UNCHANGED)
                 img_decoded.shape = (244, 324)
-                #self.get_logger().info("JPEG")
+                self.get_logger().info("JPEG")
                 cv_image = self.bridge.cv2_to_imgmsg(img_decoded, 'mono8')
-            
-            cv_image.header.stamp = self.cam_info.header.stamp
-            self.publisher_.publish(cv_image)
+
             self.publisher_info.publish(self.cam_info)
             #self.publisher_.publish(msg)
             #self.publisher_.publish(msg, self.cam_info)
@@ -162,13 +179,13 @@ class AI_Deck_Wrapper(Node):
                 nparr = np.frombuffer(imgStream, np.uint8)
                 decoded = cv2.imdecode(nparr,cv2.IMREAD_UNCHANGED)
                 cv2.putText(decoded, "Count: {:.1f}".format(self.count), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                cv2.imshow(self.name.value + ' J', decoded)
+                cv2.imshow('JPEG', decoded)
                 cv2.waitKey(1)
 
     def __init__(self):
         super().__init__('ai_deck_wrapper')
         self.declare_parameter("period", 2.0)
-        self.declare_parameter("ip", "192.168.1.105")
+        self.declare_parameter("ip", "192.168.1.106")
         self.declare_parameter("port", 5000)
         self.declare_parameter("name", "cf18")
 
